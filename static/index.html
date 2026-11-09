@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Getachew Fikadu Ekub</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
@@ -140,7 +140,7 @@
     input, select {
       width: 100%; padding: 12px 14px; background: var(--card2);
       border: 1px solid var(--border); border-radius: 10px; color: var(--text);
-      font-size: 15px; margin-bottom: 12px;
+      font-size: 16px; margin-bottom: 12px;
     }
     label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
     
@@ -163,6 +163,17 @@
     
     .page-title { font-size: 18px; font-weight: 700; padding: 16px 16px 8px; }
     .back-btn { background: none; border: none; color: var(--text); font-size: 20px; cursor: pointer; }
+    html { -webkit-text-size-adjust: 100%; }
+    body { overflow-x: hidden; -webkit-tap-highlight-color: transparent; }
+    .bottom-bar { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+    .bottom-nav { height: calc(64px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); }
+    .copy-btn { background: var(--green-soft); color: var(--green); border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer; min-height: 38px; white-space: nowrap; }
+    .owner-img { width: 100%; border-radius: 12px; margin-bottom: 12px; display: block; }
+    input[type=file] { padding: 10px; font-size: 14px; }
+    #shot-preview { width: 100%; max-height: 260px; object-fit: contain; border-radius: 10px; margin-bottom: 12px; }
+    .zoom { position: fixed; inset: 0; background: rgba(0,0,0,.92); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 12px; }
+    .zoom img { max-width: 100%; max-height: 100%; border-radius: 8px; }
+    @media (max-width: 360px) { .ticket-grid { grid-template-columns: repeat(6, 1fr); } .timer-box { min-width: 52px; padding: 8px; } }
   </style>
 </head>
 <body>
@@ -256,6 +267,9 @@
           
           <div style="font-weight:600;margin:16px 0 10px" id="banks-title">Pay to one of these accounts</div>
           <div id="banks-list"></div>
+          <div style="font-weight:600;margin:16px 0 10px" id="shot-label">Upload payment screenshot</div>
+          <input type="file" id="shot-input" accept="image/*" onchange="pickShot(this)">
+          <img id="shot-preview" class="hidden" alt="">
           
           <button class="btn btn-green" style="margin-top:20px" onclick="submitOrder()" id="btn-submit">Submit Order</button>
         </div>
@@ -265,7 +279,8 @@
       <div id="page-owner" class="hidden">
         <div class="page-title" id="owner-title">Owner Info</div>
         <div class="owner-section">
-          <div class="id-card">
+          <img id="owner-id-img" class="owner-img hidden" alt="Owner ID" onclick="zoomImg(this.src)">
+          <div class="id-card" id="id-card-default">
             <div style="display:flex;gap:12px;align-items:flex-start">
               <div style="width:80px;height:100px;background:#ddd;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:32px">👤</div>
               <div>
@@ -279,7 +294,8 @@
           </div>
           <div style="text-align:center;margin:8px 0 16px;font-size:13px;color:var(--muted)">🔍 Owner ID</div>
           
-          <div class="licence-box">
+          <img id="owner-cert-img" class="owner-img hidden" alt="Lottery Licence" onclick="zoomImg(this.src)">
+          <div class="licence-box" id="cert-default">
             <div style="font-size:14px;font-weight:600;margin-bottom:12px">የሎተሪ ፈቃድ / Lottery Licence</div>
             <div style="font-size:12px;color:#555;line-height:1.5">
               Official lottery licence document for Getachew Fikadu Jirata vehicle ekub operations.
@@ -299,6 +315,20 @@
           <button class="btn btn-green" onclick="adminLogin()">Login</button>
         </div>
         <div id="admin-dashboard" class="hidden" style="padding:16px">
+          <div class="admin-card">
+            <div style="font-weight:700;margin-bottom:8px">Settings</div>
+            <label>Countdown: set days from now</label>
+            <input type="number" id="set-days" min="0" step="1">
+            <label>Owner ID picture</label>
+            <img id="prev-id" class="owner-img hidden" alt="">
+            <input type="file" accept="image/*" onchange="pickSetting(this,'owner_id_img','prev-id')">
+            <button class="btn btn-outline" style="margin-bottom:12px;padding:8px" onclick="clearSetting('owner_id_img','prev-id')">Remove ID picture</button>
+            <label>Lottery certificate picture</label>
+            <img id="prev-cert" class="owner-img hidden" alt="">
+            <input type="file" accept="image/*" onchange="pickSetting(this,'owner_cert_img','prev-cert')">
+            <button class="btn btn-outline" style="margin-bottom:12px;padding:8px" onclick="clearSetting('owner_cert_img','prev-cert')">Remove certificate picture</button>
+            <button class="btn btn-green" onclick="saveSettings()">Save Settings</button>
+          </div>
           <h3 style="margin-bottom:12px">Vehicles</h3>
           <div id="admin-vehicles"></div>
           <h3 style="margin:20px 0 12px">Bank Accounts</h3>
@@ -423,6 +453,8 @@
       }
       
       if (page === 'home') loadVehicles();
+      if (page === 'owner') loadSettings();
+      if (page === 'checkout') document.getElementById('shot-label').textContent = x('shot');
       if (page === 'admin' && adminToken) loadAdmin();
     }
 
@@ -498,7 +530,8 @@
           grid.appendChild(el);
         });
       } catch (e) {
- console.error(e); }
+        console.error(e);
+      }
     }
 
     function toggleTicket(num, el) {
@@ -542,42 +575,113 @@
         document.getElementById('banks-list').innerHTML = banks.map(b => `
           <div class="admin-card" style="padding:12px;margin-bottom:8px">
             <div style="font-weight:600">${b.name}</div>
-            <div style="color:var(--green);font-size:15px;margin:4px 0">${b.account}</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:4px 0"><div style="color:var(--green);font-size:16px;word-break:break-all">${b.account}</div><button class="copy-btn" onclick="copyText('${b.account}', this)">${x('copy')}</button></div>
             <div style="font-size:12px;color:var(--muted)">${b.holder || ''}</div>
           </div>
         `).join('');
       } catch(e) { console.error(e); }
     }
 
+    const X = {
+      copy: {en:'Copy', am:'ቅዳ', or:'Waraabi'},
+      copied: {en:'Copied ✓', am:'ተቀድቷል ✓', or:'Waraabameera ✓'},
+      shot: {en:'Upload payment screenshot', am:'የክፍያ ስክሪንሾት ይጫኑ', or:"Suuraa kaffaltii olkaa'i"},
+      shotReq: {en:'Please upload your payment screenshot', am:'እባክዎ የክፍያ ስክሪንሾት ይጫኑ', or:"Maaloo suuraa kaffaltii olkaa'i"},
+      sending: {en:'Sending...', am:'በመላክ ላይ...', or:'Ergaa jira...'}
+    };
+    function x(k) { return X[k][lang] || X[k].en; }
+    let shotData = null, settings = {}, settingsPending = {}, vehicleImgs = {};
+
+    function copyText(txt, btn) {
+      const done = () => { btn.textContent = x('copied'); setTimeout(() => btn.textContent = x('copy'), 1500); };
+      const fb = () => {
+        const a = document.createElement('textarea');
+        a.value = txt; a.style.cssText = 'position:fixed;opacity:0';
+        document.body.appendChild(a); a.focus(); a.select();
+        try { document.execCommand('copy'); } catch (e) {}
+        a.remove(); done();
+      };
+      if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(txt).then(done).catch(fb);
+      else fb();
+    }
+
+    function compressImage(file, maxSide, q) {
+      return new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onerror = rej;
+        r.onload = () => {
+          const im = new Image();
+          im.onerror = rej;
+          im.onload = () => {
+            const s = Math.min(1, maxSide / Math.max(im.width, im.height));
+            const c = document.createElement('canvas');
+            c.width = Math.round(im.width * s); c.height = Math.round(im.height * s);
+            c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+            res(c.toDataURL('image/jpeg', q));
+          };
+          im.src = r.result;
+        };
+        r.readAsDataURL(file);
+      });
+    }
+
+    async function pickShot(inp) {
+      if (!inp.files[0]) return;
+      shotData = await compressImage(inp.files[0], 1400, 0.8);
+      const p = document.getElementById('shot-preview');
+      p.src = shotData; p.classList.remove('hidden');
+    }
+
+    function zoomImg(src) {
+      const o = document.createElement('div'); o.className = 'zoom';
+      const im = new Image(); im.src = src; o.appendChild(im);
+      o.onclick = () => o.remove(); document.body.appendChild(o);
+    }
+
     async function submitOrder() {
       const fullName = document.getElementById('input-name').value.trim();
       const phone = document.getElementById('input-phone').value.trim();
-      if (!fullName || !phone) {
-        alert('Please fill name and phone');
-        return;
-      }
-      const userId = tg?.initDataUnsafe?.user?.id || 0;
+      if (!fullName || !phone) { alert('Please fill name and phone'); return; }
+      if (!shotData) { alert(x('shotReq')); return; }
+      const btn = document.getElementById('btn-submit');
+      btn.disabled = true; btn.textContent = x('sending');
       try {
-        const res = await fetch('/api/orders', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            user_id: userId,
-            vehicle_id: currentVehicle.id,
-            tickets: [...selectedTickets],
-            full_name: fullName,
-            phone: phone
-          })
-        });
+        const fd = new FormData();
+        fd.append('user_id', tg?.initDataUnsafe?.user?.id || 0);
+        fd.append('vehicle_id', currentVehicle.id);
+        fd.append('tickets', [...selectedTickets].join(','));
+        fd.append('full_name', fullName);
+        fd.append('phone', phone);
+        fd.append('screenshot', await (await fetch(shotData)).blob(), 'payment.jpg');
+        const res = await fetch('/api/orders', { method: 'POST', body: fd });
         const data = await res.json();
         if (data.ok) {
-          alert('Order submitted successfully! Please send payment screenshot to the admin.');
-          selectedTickets.clear();
+          alert(data.sent ? '✅ Order and payment screenshot sent! We will confirm soon.'
+                          : 'Order saved, but the screenshot could not be delivered. Please send it to the admin directly.');
+          selectedTickets.clear(); shotData = null;
+          document.getElementById('shot-input').value = '';
+          document.getElementById('shot-preview').classList.add('hidden');
           showPage('home');
-        }
-      } catch(e) {
-        alert('Error submitting order');
-      }
+        } else alert('Error submitting order');
+      } catch (e) { alert('Error submitting order'); }
+      btn.disabled = false; btn.textContent = t('submit');
+    }
+
+    async function loadSettings() {
+      try { settings = await (await fetch('/api/settings')).json(); } catch (e) { return; }
+      [['owner-id-img', 'id-card-default', settings.owner_id_img], ['owner-cert-img', 'cert-default', settings.owner_cert_img]].forEach(([img, def, src]) => {
+        const el = document.getElementById(img);
+        if (src) el.src = src;
+        el.classList.toggle('hidden', !src);
+        document.getElementById(def).classList.toggle('hidden', !!src);
+      });
+      tickTimer();
+    }
+
+    function tickTimer() {
+      const d = Math.max(0, parseInt(settings.countdown_end || 0) - Date.now());
+      const v = [Math.floor(d / 864e5), Math.floor(d / 36e5) % 24, Math.floor(d / 6e4) % 60, Math.floor(d / 1e3) % 60];
+      document.querySelectorAll('#detail-timer .timer-box span').forEach((s, i) => s.textContent = String(v[i]).padStart(2, '0'));
     }
 
     // Admin
@@ -600,14 +704,32 @@
       } catch(e) { alert('Error'); }
     }
 
+    const esc = s => String(s || '').replace(/"/g, '&quot;');
+
     async function loadAdmin() {
-      const res = await fetch('/api/admin/vehicles', {
-        headers: { 'X-Admin-Token': adminToken }
+      await loadSettings();
+      const left = Math.max(0, Math.ceil((parseInt(settings.countdown_end || 0) - Date.now()) / 864e5));
+      document.getElementById('set-days').placeholder = `Now: ${left} days left`;
+      [['prev-id', settings.owner_id_img], ['prev-cert', settings.owner_cert_img]].forEach(([id, src]) => {
+        const el = document.getElementById(id);
+        if (src) el.src = src;
+        el.classList.toggle('hidden', !src);
       });
+      const res = await fetch('/api/admin/vehicles', { headers: { 'X-Admin-Token': adminToken } });
       const vs = await res.json();
       document.getElementById('admin-vehicles').innerHTML = vs.map(v => `
         <div class="admin-card">
-          <div style="font-weight:700;margin-bottom:8px">${v.name}</div>
+          <img src="${esc(v.image)}" id="vprev-${v.id}" class="owner-img" style="height:140px;object-fit:cover" alt="">
+          <label>Name (English)</label>
+          <input type="text" id="name-${v.id}" value="${esc(v.name)}">
+          <label>Name (አማርኛ)</label>
+          <input type="text" id="nameam-${v.id}" value="${esc(v.name_am)}">
+          <label>Name (Afaan Oromoo)</label>
+          <input type="text" id="nameor-${v.id}" value="${esc(v.name_or)}">
+          <label>Picture (choose from phone)</label>
+          <input type="file" accept="image/*" onchange="pickVehicleImg(${v.id}, this)">
+          <label>or picture link</label>
+          <input type="text" id="imgurl-${v.id}" placeholder="https://..." value="${v.image && !v.image.startsWith('data:') ? esc(v.image) : ''}">
           <label>Price (Birr)</label>
           <input type="number" id="price-${v.id}" value="${v.price}">
           <label>Total Tickets</label>
@@ -615,31 +737,68 @@
           <button class="btn btn-green" style="margin-top:8px" onclick="saveVehicle(${v.id})">Save</button>
         </div>
       `).join('');
-      
+
       const bRes = await fetch('/api/banks');
       banks = await bRes.json();
       document.getElementById('admin-banks').innerHTML = banks.map((b, i) => `
         <div class="admin-card">
           <label>Bank Name</label>
-          <input type="text" id="bank-name-${i}" value="${b.name}">
+          <input type="text" id="bank-name-${i}" value="${esc(b.name)}">
           <label>Account Number</label>
-          <input type="text" id="bank-acc-${i}" value="${b.account}">
+          <input type="text" id="bank-acc-${i}" value="${esc(b.account)}">
           <label>Account Holder</label>
-          <input type="text" id="bank-holder-${i}" value="${b.holder || ''}">
+          <input type="text" id="bank-holder-${i}" value="${esc(b.holder)}">
         </div>
       `).join('');
     }
 
+    async function pickVehicleImg(id, inp) {
+      if (!inp.files[0]) return;
+      vehicleImgs[id] = await compressImage(inp.files[0], 900, 0.8);
+      document.getElementById('vprev-' + id).src = vehicleImgs[id];
+    }
+
     async function saveVehicle(id) {
-      const price = parseInt(document.getElementById('price-' + id).value);
-      const total = parseInt(document.getElementById('total-' + id).value);
+      const g = k => document.getElementById(k + '-' + id).value;
+      const body = { name: g('name').trim(), name_am: g('nameam').trim(), name_or: g('nameor').trim(),
+                     price: parseInt(g('price')), total_tickets: parseInt(g('total')) };
+      if (!body.name) delete body.name;
+      const url = g('imgurl').trim();
+      if (vehicleImgs[id]) body.image = vehicleImgs[id]; else if (url) body.image = url;
       await fetch(`/api/admin/vehicles/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken },
-        body: JSON.stringify({ price, total_tickets: total })
+        body: JSON.stringify(body)
       });
+      delete vehicleImgs[id];
       alert('Saved!');
       loadVehicles();
+    }
+
+    async function pickSetting(inp, key, prevId) {
+      if (!inp.files[0]) return;
+      settingsPending[key] = await compressImage(inp.files[0], 1400, 0.8);
+      const p = document.getElementById(prevId); p.src = settingsPending[key]; p.classList.remove('hidden');
+    }
+
+    function clearSetting(key, prevId) {
+      settingsPending[key] = '';
+      document.getElementById(prevId).classList.add('hidden');
+    }
+
+    async function saveSettings() {
+      const body = { ...settingsPending };
+      const d = document.getElementById('set-days').value;
+      if (d !== '') body.countdown_days = parseFloat(d);
+      await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken },
+        body: JSON.stringify(body)
+      });
+      settingsPending = {};
+      document.getElementById('set-days').value = '';
+      await loadAdmin();
+      alert('Saved!');
     }
 
     async function saveBanks() {
@@ -661,6 +820,8 @@
       document.getElementById('admin-login').classList.remove('hidden');
       document.getElementById('admin-dashboard').classList.add('hidden');
     }
+    loadSettings();
+    setInterval(tickTimer, 1000);
   </script>
 </body>
 </html>
