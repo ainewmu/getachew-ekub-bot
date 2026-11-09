@@ -317,8 +317,6 @@
         <div id="admin-dashboard" class="hidden" style="padding:16px">
           <div class="admin-card">
             <div style="font-weight:700;margin-bottom:8px">Settings</div>
-            <label>Countdown: set days from now</label>
-            <input type="number" id="set-days" min="0" step="1">
             <label>Owner ID picture</label>
             <img id="prev-id" class="owner-img hidden" alt="">
             <input type="file" accept="image/*" onchange="pickSetting(this,'owner_id_img','prev-id')">
@@ -499,25 +497,27 @@
       document.getElementById('detail-sub').textContent = currentVehicle.subtitle || '';
       document.getElementById('detail-img').src = currentVehicle.image;
       
-      const sold = currentVehicle.sold_tickets || Math.floor(currentVehicle.total_tickets * 0.95);
+      const sold = currentVehicle.total_tickets - (currentVehicle.available ?? 0);
       const pct = Math.round((sold / currentVehicle.total_tickets) * 100);
       document.getElementById('detail-progress').style.width = pct + '%';
       document.getElementById('detail-sold').textContent = `${sold} ${t('sold')}`;
       document.getElementById('detail-percent').textContent = pct + '%';
       
       showPage('detail');
+      tickTimer();
       loadTickets();
       updateSelectedUI();
     }
 
     async function loadTickets() {
       try {
-        const res = await fetch(`/api/vehicles/${currentVehicle.id}/tickets?page=${currentPage}&per_page=80`);
+        const res = await fetch(`/api/vehicles/${currentVehicle.id}/tickets?page=${currentPage}&per_page=10000`);
         const tickets = await res.json();
         const grid = document.getElementById('ticket-grid');
         
         if (currentPage === 1) grid.innerHTML = '';
         
+        const frag = document.createDocumentFragment();
         tickets.forEach(t => {
           const el = document.createElement('div');
           el.className = 'ticket ' + (t.is_available ? 'available' : 'unavailable');
@@ -527,11 +527,11 @@
             el.onclick = () => toggleTicket(t.ticket_number, el);
           }
           if (selectedTickets.has(t.ticket_number)) el.classList.add('selected');
-          grid.appendChild(el);
+          frag.appendChild(el);
         });
+        grid.appendChild(frag);
       } catch (e) {
-        console.error(e);
-      }
+ console.error(e); }
     }
 
     function toggleTicket(num, el) {
@@ -662,7 +662,7 @@
           document.getElementById('shot-input').value = '';
           document.getElementById('shot-preview').classList.add('hidden');
           showPage('home');
-        } else alert('Error submitting order');
+        } else alert(data.detail || 'Error submitting order');
       } catch (e) { alert('Error submitting order'); }
       btn.disabled = false; btn.textContent = t('submit');
     }
@@ -679,7 +679,7 @@
     }
 
     function tickTimer() {
-      const d = Math.max(0, parseInt(settings.countdown_end || 0) - Date.now());
+      const d = Math.max(0, parseInt(currentVehicle?.countdown_end || 0) - Date.now());
       const v = [Math.floor(d / 864e5), Math.floor(d / 36e5) % 24, Math.floor(d / 6e4) % 60, Math.floor(d / 1e3) % 60];
       document.querySelectorAll('#detail-timer .timer-box span').forEach((s, i) => s.textContent = String(v[i]).padStart(2, '0'));
     }
@@ -705,11 +705,10 @@
     }
 
     const esc = s => String(s || '').replace(/"/g, '&quot;');
+    const daysLeft = v => Math.max(0, Math.ceil((parseInt(v.countdown_end || 0) - Date.now()) / 864e5));
 
     async function loadAdmin() {
       await loadSettings();
-      const left = Math.max(0, Math.ceil((parseInt(settings.countdown_end || 0) - Date.now()) / 864e5));
-      document.getElementById('set-days').placeholder = `Now: ${left} days left`;
       [['prev-id', settings.owner_id_img], ['prev-cert', settings.owner_cert_img]].forEach(([id, src]) => {
         const el = document.getElementById(id);
         if (src) el.src = src;
@@ -732,9 +731,12 @@
           <input type="text" id="imgurl-${v.id}" placeholder="https://..." value="${v.image && !v.image.startsWith('data:') ? esc(v.image) : ''}">
           <label>Price (Birr)</label>
           <input type="number" id="price-${v.id}" value="${v.price}">
-          <label>Total Tickets</label>
+          <label>Total lottery numbers (now ${v.available ?? '?'} available)</label>
           <input type="number" id="total-${v.id}" value="${v.total_tickets}">
+          <label>Countdown for this car (days from now)</label>
+          <input type="number" id="days-${v.id}" min="0" placeholder="Now: ${daysLeft(v)} days left">
           <button class="btn btn-green" style="margin-top:8px" onclick="saveVehicle(${v.id})">Save</button>
+          <button class="btn btn-outline" style="margin-top:8px" onclick="releaseTickets(${v.id})">Make chosen numbers available again</button>
         </div>
       `).join('');
 
@@ -763,6 +765,8 @@
       const body = { name: g('name').trim(), name_am: g('nameam').trim(), name_or: g('nameor').trim(),
                      price: parseInt(g('price')), total_tickets: parseInt(g('total')) };
       if (!body.name) delete body.name;
+      const dd = g('days');
+      if (dd !== '') body.countdown_days = parseFloat(dd);
       const url = g('imgurl').trim();
       if (vehicleImgs[id]) body.image = vehicleImgs[id]; else if (url) body.image = url;
       await fetch(`/api/admin/vehicles/${id}`, {
@@ -772,7 +776,17 @@
       });
       delete vehicleImgs[id];
       alert('Saved!');
-      loadVehicles();
+      await loadVehicles();
+      loadAdmin();
+    }
+
+    async function releaseTickets(id) {
+      if (!confirm('Make all numbers chosen by customers available again for this car?')) return;
+      const res = await fetch(`/api/admin/vehicles/${id}/reset`, { method: 'POST', headers: { 'X-Admin-Token': adminToken } });
+      const data = await res.json();
+      alert(`${data.released || 0} numbers are available again`);
+      await loadVehicles();
+      loadAdmin();
     }
 
     async function pickSetting(inp, key, prevId) {
@@ -788,15 +802,12 @@
 
     async function saveSettings() {
       const body = { ...settingsPending };
-      const d = document.getElementById('set-days').value;
-      if (d !== '') body.countdown_days = parseFloat(d);
       await fetch('/api/admin/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken },
         body: JSON.stringify(body)
       });
       settingsPending = {};
-      document.getElementById('set-days').value = '';
       await loadAdmin();
       alert('Saved!');
     }
