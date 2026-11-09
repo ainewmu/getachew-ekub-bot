@@ -1,4 +1,5 @@
 import asyncio
+import time
 import logging
 from fastapi import FastAPI, Request, HTTPException, Header, Form, File, UploadFile
 from aiogram.types import BufferedInputFile
@@ -81,11 +82,14 @@ async def create_order(
     vehicle = await db.get_vehicle(vehicle_id)
     if not vehicle:
         raise HTTPException(404, "Vehicle not found")
-    nums = [int(n) for n in tickets.split(",") if n.strip()]
+    nums = sorted({int(n) for n in tickets.split(",") if n.strip()})
     if not nums:
         raise HTTPException(400, "No tickets selected")
     total = vehicle["price"] * len(nums)
-    await db.create_order(user_id, vehicle_id, nums, total, full_name, phone)
+    try:
+        await db.create_order(user_id, vehicle_id, nums, total, full_name, phone)
+    except db.TicketsTaken:
+        raise HTTPException(409, "Some of the numbers you chose were just taken. Please choose other numbers.")
 
     sent = True
     try:
@@ -119,7 +123,6 @@ async def admin_login(data: AdminLogin):
 
 
 class SettingsUpdate(BaseModel):
-    countdown_days: Optional[float] = None
     owner_id_img: Optional[str] = None
     owner_cert_img: Optional[str] = None
 
@@ -128,9 +131,6 @@ class SettingsUpdate(BaseModel):
 async def admin_update_settings(data: SettingsUpdate, x_admin_token: str = Header(None)):
     if x_admin_token != "admin-authenticated":
         raise HTTPException(401, "Unauthorized")
-    if data.countdown_days is not None:
-        import time
-        await db.set_setting("countdown_end", str(int((time.time() + data.countdown_days * 86400) * 1000)))
     for key in ("owner_id_img", "owner_cert_img"):
         val = getattr(data, key)
         if val is not None:
@@ -147,14 +147,26 @@ class VehicleUpdate(BaseModel):
     total_tickets: Optional[int] = None
     image: Optional[str] = None
     is_active: Optional[int] = None
+    countdown_days: Optional[float] = None
 
 
 @app.put("/api/admin/vehicles/{vehicle_id}")
 async def admin_update_vehicle(vehicle_id: int, data: VehicleUpdate, x_admin_token: str = Header(None)):
     if x_admin_token != "admin-authenticated":
         raise HTTPException(401, "Unauthorized")
-    await db.update_vehicle(vehicle_id, data.dict(exclude_none=True))
+    d = data.dict(exclude_none=True)
+    days = d.pop("countdown_days", None)
+    if days is not None:
+        d["countdown_end"] = int((time.time() + days * 86400) * 1000)
+    await db.update_vehicle(vehicle_id, d)
     return {"ok": True}
+
+
+@app.post("/api/admin/vehicles/{vehicle_id}/reset")
+async def admin_reset_vehicle(vehicle_id: int, x_admin_token: str = Header(None)):
+    if x_admin_token != "admin-authenticated":
+        raise HTTPException(401, "Unauthorized")
+    return {"ok": True, "released": await db.release_chosen(vehicle_id)}
 
 
 class BankItem(BaseModel):
@@ -179,7 +191,10 @@ async def admin_update_banks(data: BanksUpdate, x_admin_token: str = Header(None
 async def admin_get_vehicles(x_admin_token: str = Header(None)):
     if x_admin_token != "admin-authenticated":
         raise HTTPException(401, "Unauthorized")
-    return await db.get_vehicles()
+    vehicles = await db.get_vehicles()
+    for v in vehicles:
+        v["available"] = await db.get_available_count(v["id"])
+    return vehicles
 
 
 if __name__ == "__main__":
