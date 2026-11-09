@@ -5,6 +5,7 @@ load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "9107287321:AAEjQQrdZTdzlertDB9LmqC3TMZshuf7CIc")
 ADMIN_PASSWORD = "bobmarley#123"
+DATABASE_URL = os.getenv("DATABASE_URL", "")
 ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID", "8565823278"))
 WEBAPP_URL = os.getenv("WEBAPP_URL", "https://your-domain.com")  # Will be updated after hosting
 
