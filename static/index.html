@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Getachew Fikadu Ekub</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg: #0d0d0d;
+      --card: #1a1a1a;
+      --card2: #222;
+      --green: #22c55e;
+      --green-dark: #16a34a;
+      --green-soft: #14532d;
+      --text: #f5f5f5;
+      --muted: #a3a3a3;
+      --danger: #ef4444;
+      --border: #333;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: 80px;
+    }
+    .hidden { display: none !important; }
+    
+    /* Header */
+    .header {
+      position: sticky; top: 0; z-index: 50;
+      background: var(--bg);
+      padding: 12px 16px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-icon {
+      width: 36px; height: 36px; background: var(--green);
+      border-radius: 10px; display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    .brand-name { font-weight: 700; font-size: 15px; }
+    
+    /* Language Screen */
+    #lang-screen {
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; padding: 24px; gap: 16px;
+    }
+    .lang-btn {
+      width: 100%; max-width: 320px; padding: 16px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; color: var(--text); font-size: 17px;
+      font-weight: 600; cursor: pointer; transition: 0.2s;
+    }
+    .lang-btn:active { background: var(--green); border-color: var(--green); }
+    
+    /* Vehicle List */
+    .vehicle-list { padding: 12px 16px; display: flex; flex-direction: column; gap: 12px; }
+    .vehicle-card {
+      background: var(--card); border-radius: 16px; overflow: hidden;
+      border: 1px solid var(--border); cursor: pointer;
+    }
+    .vehicle-card img { width: 100%; height: 160px; object-fit: cover; }
+    .vehicle-info { padding: 14px; }
+    .vehicle-name { font-weight: 700; font-size: 16px; margin-bottom: 4px; }
+    .vehicle-sub { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+    .vehicle-meta { display: flex; justify-content: space-between; align-items: center; }
+    .price { color: var(--green); font-weight: 700; font-size: 16px; }
+    .tickets-left { font-size: 12px; color: var(--muted); }
+    
+    /* Detail Page */
+    .detail-img { width: 100%; height: 220px; object-fit: cover; }
+    .detail-body { padding: 16px; }
+    .progress-bar {
+      height: 8px; background: #333; border-radius: 99px; overflow: hidden; margin: 12px 0;
+    }
+    .progress-fill { height: 100%; background: var(--green); border-radius: 99px; }
+    .timer {
+      display: flex; gap: 8px; justify-content: center; margin: 16px 0;
+    }
+    .timer-box {
+      background: var(--green-soft); color: var(--green);
+      padding: 10px 12px; border-radius: 10px; text-align: center; min-width: 60px;
+    }
+    .timer-box span { display: block; font-size: 20px; font-weight: 700; }
+    .timer-box small { font-size: 11px; opacity: 0.8; }
+    
+    /* Ticket Grid */
+    .ticket-grid {
+      display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px;
+      padding: 12px 16px; max-height: 340px; overflow-y: auto;
+    }
+    .ticket {
+      aspect-ratio: 1; border-radius: 8px; display: flex; align-items: center;
+      justify-content: center; font-size: 11px; font-weight: 600; cursor: pointer;
+      background: #3f1f1f; color: #f87171; border: 1px solid #5c2626;
+    }
+    .ticket.available {
+      background: #14532d; color: #4ade80; border-color: #166534;
+    }
+    .ticket.selected {
+      background: var(--green); color: #000; border-color: var(--green);
+    }
+    .ticket.unavailable { opacity: 0.5; pointer-events: none; }
+    
+    /* Buttons */
+    .btn {
+      display: block; width: 100%; padding: 14px; border: none; border-radius: 12px;
+      font-size: 16px; font-weight: 700; cursor: pointer; text-align: center;
+    }
+    .btn-green { background: var(--green); color: #000; }
+    .btn-green:active { background: var(--green-dark); }
+    .btn-outline {
+      background: transparent; border: 1px solid var(--border); color: var(--text);
+    }
+    .bottom-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--card); border-top: 1px solid var(--border);
+      padding: 12px 16px; display: flex; gap: 10px; z-index: 40;
+    }
+    
+    /* Nav */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0; height: 64px;
+      background: var(--card); border-top: 1px solid var(--border);
+      display: flex; z-index: 30;
+    }
+    .nav-item {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 4px; color: var(--muted); font-size: 11px;
+      cursor: pointer;
+    }
+    .nav-item.active { color: var(--green); }
+    .nav-item span { font-size: 20px; }
+    
+    /* Forms */
+    input, select {
+      width: 100%; padding: 12px 14px; background: var(--card2);
+      border: 1px solid var(--border); border-radius: 10px; color: var(--text);
+      font-size: 15px; margin-bottom: 12px;
+    }
+    label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+    
+    /* Admin */
+    .admin-card {
+      background: var(--card); border-radius: 14px; padding: 16px;
+      margin-bottom: 12px; border: 1px solid var(--border);
+    }
+    
+    /* Owner */
+    .owner-section { padding: 16px; }
+    .id-card {
+      background: linear-gradient(135deg, #e8f0e8, #f5f5f0);
+      border-radius: 12px; padding: 16px; color: #111; margin-bottom: 16px;
+    }
+    .licence-box {
+      background: #fff; border-radius: 12px; padding: 20px; color: #111;
+      text-align: center; min-height: 200px;
+    }
+    
+    .page-title { font-size: 18px; font-weight: 700; padding: 16px 16px 8px; }
+    .back-btn { background: none; border: none; color: var(--text); font-size: 20px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- LANGUAGE SCREEN -->
+    <div id="lang-screen">
+      <div style="font-size:48px;margin-bottom:12px">🚗</div>
+      <h2 style="margin-bottom:8px">Getachew Fikadu Ekub</h2>
+      <p style="color:var(--muted);margin-bottom:24px;text-align:center">Please choose your language<br>እባክዎ ቋንቋ ይምረጡ<br>Afaan filadhaa</p>
+      <button class="lang-btn" onclick="setLang('am')">🇪🇹 አማርኛ (Amharic)</button>
+      <button class="lang-btn" onclick="setLang('en')">🇬🇧 English</button>
+      <button class="lang-btn" onclick="setLang('or')">🇪🇹 Afaan Oromoo</button>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="main-app" class="hidden">
+      <!-- Header -->
+      <div class="header">
+        <div class="brand">
+          <div class="brand-icon">🏆</div>
+          <div class="brand-name">Getachew Fikadu</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="lang-switch" onchange="setLang(this.value)" style="width:auto;padding:6px 10px;font-size:13px;margin:0">
+            <option value="am">አማ</option>
+            <option value="en">EN</option>
+            <option value="or">OR</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- HOME -->
+      <div id="page-home">
+        <div class="vehicle-list" id="vehicle-list"></div>
+      </div>
+
+      <!-- DETAIL -->
+      <div id="page-detail" class="hidden">
+        <div class="header">
+          <button class="back-btn" onclick="showPage('home')">←</button>
+          <div class="brand-name" id="detail-title">Vehicle</div>
+          <div style="width:32px"></div>
+        </div>
+        <img id="detail-img" class="detail-img" src="" alt="">
+        <div class="detail-body">
+          <div class="vehicle-name" id="detail-name"></div>
+          <div class="vehicle-sub" id="detail-sub"></div>
+          <div class="progress-bar"><div class="progress-fill" id="detail-progress" style="width:95%"></div></div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted)">
+            <span id="detail-sold"></span>
+            <span id="detail-percent">95%</span>
+          </div>
+          <div class="timer" id="detail-timer">
+            <div class="timer-box"><span>00</span><small>Days</small></div>
+            <div class="timer-box"><span>00</span><small>Hrs</small></div>
+            <div class="timer-box"><span>00</span><small>Min</small></div>
+            <div class="timer-box"><span>00</span><small>Sec</small></div>
+          </div>
+          <div style="margin:16px 0;font-weight:600" id="select-label">Select Numbers</div>
+        </div>
+        <div class="ticket-grid" id="ticket-grid"></div>
+        <div style="height:90px"></div>
+        <div class="bottom-bar">
+          <div style="flex:1">
+            <div style="font-size:12px;color:var(--muted)" id="selected-count">0 selected</div>
+            <div style="font-weight:700;color:var(--green)" id="selected-total">0 Birr</div>
+          </div>
+          <button class="btn btn-green" style="width:auto;padding:12px 24px" onclick="goToCheckout()" id="btn-continue">Continue</button>
+        </div>
+      </div>
+
+      <!-- CHECKOUT -->
+      <div id="page-checkout" class="hidden">
+        <div class="header">
+          <button class="back-btn" onclick="showPage('detail')">←</button>
+          <div class="brand-name" id="checkout-title">Payment</div>
+          <div style="width:32px"></div>
+        </div>
+        <div style="padding:16px">
+          <div class="admin-card">
+            <div style="font-weight:600;margin-bottom:8px" id="checkout-summary"></div>
+            <div id="checkout-tickets" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px"></div>
+            <div style="font-size:20px;font-weight:700;color:var(--green)" id="checkout-total"></div>
+          </div>
+          
+          <label id="label-name">Full Name</label>
+          <input type="text" id="input-name" placeholder="Your full name">
+          
+          <label id="label-phone">Phone Number</label>
+          <input type="tel" id="input-phone" placeholder="09xxxxxxxx">
+          
+          <div style="font-weight:600;margin:16px 0 10px" id="banks-title">Pay to one of these accounts</div>
+          <div id="banks-list"></div>
+          
+          <button class="btn btn-green" style="margin-top:20px" onclick="submitOrder()" id="btn-submit">Submit Order</button>
+        </div>
+      </div>
+
+      <!-- OWNER / PROFILE -->
+      <div id="page-owner" class="hidden">
+        <div class="page-title" id="owner-title">Owner Info</div>
+        <div class="owner-section">
+          <div class="id-card">
+            <div style="display:flex;gap:12px;align-items:flex-start">
+              <div style="width:80px;height:100px;background:#ddd;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:32px">👤</div>
+              <div>
+                <div style="font-size:11px;color:#666">Ethiopian Digital ID Card</div>
+                <div style="font-weight:700;font-size:15px;margin:4px 0">Getachew Fikadu Jirata</div>
+                <div style="font-size:12px;color:#444">15/Sep/1988</div>
+                <div style="font-size:12px;color:#444">FCN: 285473403197</div>
+                <div style="font-size:12px;color:#444">Validity: 2019-2032</div>
+              </div>
+            </div>
+          </div>
+          <div style="text-align:center;margin:8px 0 16px;font-size:13px;color:var(--muted)">🔍 Owner ID</div>
+          
+          <div class="licence-box">
+            <div style="font-size:14px;font-weight:600;margin-bottom:12px">የሎተሪ ፈቃድ / Lottery Licence</div>
+            <div style="font-size:12px;color:#555;line-height:1.5">
+              Official lottery licence document for Getachew Fikadu Jirata vehicle ekub operations.
+            </div>
+            <div style="margin-top:20px;font-size:40px">📄</div>
+          </div>
+          <div style="text-align:center;margin:8px 0;font-size:13px;color:var(--muted)">🔍 Lottery Licence</div>
+        </div>
+      </div>
+
+      <!-- ADMIN -->
+      <div id="page-admin" class="hidden">
+        <div class="page-title">Admin Panel</div>
+        <div style="padding:16px" id="admin-login">
+          <label>Password</label>
+          <input type="password" id="admin-pass" placeholder="Enter admin password">
+          <button class="btn btn-green" onclick="adminLogin()">Login</button>
+        </div>
+        <div id="admin-dashboard" class="hidden" style="padding:16px">
+          <h3 style="margin-bottom:12px">Vehicles</h3>
+          <div id="admin-vehicles"></div>
+          <h3 style="margin:20px 0 12px">Bank Accounts</h3>
+          <div id="admin-banks"></div>
+          <button class="btn btn-green" style="margin-top:16px" onclick="saveBanks()">Save Banks</button>
+          <button class="btn btn-outline" style="margin-top:10px" onclick="logoutAdmin()">Logout</button>
+        </div>
+      </div>
+
+      <!-- Bottom Nav -->
+      <div class="bottom-nav" id="bottom-nav">
+        <div class="nav-item active" onclick="showPage('home')" data-page="home">
+          <span>🏠</span>
+          <div id="nav-home">Home</div>
+        </div>
+        <div class="nav-item" onclick="showPage('owner')" data-page="owner">
+          <span>🆔</span>
+          <div id="nav-owner">Owner</div>
+        </div>
+        <div class="nav-item" onclick="showPage('admin')" data-page="admin">
+          <span>⚙️</span>
+          <div id="nav-admin">Admin</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+      tg.setHeaderColor('#0d0d0d');
+      tg.setBackgroundColor('#0d0d0d');
+    }
+
+    // State
+    let lang = 'en';
+    let vehicles = [];
+    let currentVehicle = null;
+    let selectedTickets = new Set();
+    let currentPage = 1;
+    let adminToken = null;
+    let banks = [];
+
+    const i18n = {
+      en: {
+        home: 'Home', owner: 'Owner', admin: 'Admin',
+        select: 'Select Numbers', continue: 'Continue',
+        selected: 'selected', payment: 'Payment',
+        fullName: 'Full Name', phone: 'Phone Number',
+        payTo: 'Pay to one of these accounts', submit: 'Submit Order',
+        ownerTitle: 'Owner Info', sold: 'sold'
+      },
+      am: {
+        home: 'መነሻ', owner: 'ባለቤት', admin: 'አስተዳዳሪ',
+        select: 'ቁጥሮችን ይምረጡ', continue: 'ቀጥል',
+        selected: 'ተመርጧል', payment: 'ክፍያ',
+        fullName: 'ሙሉ ስም', phone: 'ስልክ ቁጥር',
+        payTo: 'ወደ ከሚከተሉት አካውንቶች ይክፈሉ', submit: 'ትዕዛዝ ላክ',
+        ownerTitle: 'የባለቤት መረጃ', sold: 'ተሽጧል'
+      },
+      or: {
+        home: 'Mana', owner: 'Abbaa', admin: 'Admin',
+        select: 'Lakkoofsa filadhu', continue: 'Itti fufi',
+        selected: 'filatame', payment: 'Kaffaltii',
+        fullName: 'Maqaa Guutuu', phone: 'Bilbila',
+        payTo: 'Herrega kana keessaa tokkootti kaffali', submit: 'Ajaja Ergi',
+        ownerTitle: 'Odeeffannoo Abbaa', sold: 'gurgurame'
+      }
+    };
+
+    function t(key) { return i18n[lang][key] || i18n.en[key]; }
+
+    function setLang(l) {
+      lang = l;
+      document.getElementById('lang-screen').classList.add('hidden');
+      document.getElementById('main-app').classList.remove('hidden');
+      document.getElementById('lang-switch').value = l;
+      applyTranslations();
+      loadVehicles();
+    }
+
+    function applyTranslations() {
+      document.getElementById('nav-home').textContent = t('home');
+      document.getElementById('nav-owner').textContent = t('owner');
+      document.getElementById('nav-admin').textContent = t('admin');
+      document.getElementById('select-label').textContent = t('select');
+      document.getElementById('btn-continue').textContent = t('continue');
+      document.getElementById('checkout-title').textContent = t('payment');
+      document.getElementById('label-name').textContent = t('fullName');
+      document.getElementById('label-phone').textContent = t('phone');
+      document.getElementById('banks-title').textContent = t('payTo');
+      document.getElementById('btn-submit').textContent = t('submit');
+      document.getElementById('owner-title').textContent = t('ownerTitle');
+    }
+
+    // Check URL param for lang
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlLang = urlParams.get('lang');
+    if (urlLang && ['am','en','or'].includes(urlLang)) {
+      setLang(urlLang);
+    }
+
+    function showPage(page) {
+      ['home','detail','checkout','owner','admin'].forEach(p => {
+        document.getElementById('page-' + p)?.classList.add('hidden');
+      });
+      document.getElementById('page-' + page)?.classList.remove('hidden');
+      
+      // Nav active
+      document.querySelectorAll('.nav-item').forEach(el => {
+        el.classList.toggle('active', el.dataset.page === page);
+      });
+      
+      // Hide bottom nav on detail/checkout
+      const nav = document.getElementById('bottom-nav');
+      if (page === 'detail' || page === 'checkout') {
+        nav.style.display = 'none';
+      } else {
+        nav.style.display = 'flex';
+      }
+      
+      if (page === 'home') loadVehicles();
+      if (page === 'admin' && adminToken) loadAdmin();
+    }
+
+    async function loadVehicles() {
+      try {
+        const res = await fetch('/api/vehicles');
+        vehicles = await res.json();
+        const list = document.getElementById('vehicle-list');
+        list.innerHTML = vehicles.map(v => {
+          const name = lang === 'am' ? (v.name_am || v.name) : lang === 'or' ? (v.name_or || v.name) : v.name;
+          const sold = v.sold_tickets || Math.floor(v.total_tickets * 0.95);
+          return `
+            <div class="vehicle-card" onclick="openVehicle(${v.id})">
+              <img src="${v.image}" alt="${v.name}" onerror="this.src='https://via.placeholder.com/400x200?text=${encodeURIComponent(v.name)}'">
+              <div class="vehicle-info">
+                <div class="vehicle-name">${name}</div>
+                <div class="vehicle-sub">${v.subtitle || ''}</div>
+                <div class="vehicle-meta">
+                  <div class="price">${v.price.toLocaleString()} Birr</div>
+                  <div class="tickets-left">${sold}/${v.total_tickets}</div>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function openVehicle(id) {
+      currentVehicle = vehicles.find(v => v.id === id);
+      if (!currentVehicle) return;
+      selectedTickets.clear();
+      currentPage = 1;
+      
+      const name = lang === 'am' ? (currentVehicle.name_am || currentVehicle.name) : 
+                   lang === 'or' ? (currentVehicle.name_or || currentVehicle.name) : currentVehicle.name;
+      
+      document.getElementById('detail-title').textContent = name;
+      document.getElementById('detail-name').textContent = name;
+      document.getElementById('detail-sub').textContent = currentVehicle.subtitle || '';
+      document.getElementById('detail-img').src = currentVehicle.image;
+      
+      const sold = currentVehicle.sold_tickets || Math.floor(currentVehicle.total_tickets * 0.95);
+      const pct = Math.round((sold / currentVehicle.total_tickets) * 100);
+      document.getElementById('detail-progress').style.width = pct + '%';
+      document.getElementById('detail-sold').textContent = `${sold} ${t('sold')}`;
+      document.getElementById('detail-percent').textContent = pct + '%';
+      
+      showPage('detail');
+      loadTickets();
+      updateSelectedUI();
+    }
+
+    async function loadTickets() {
+      try {
+        const res = await fetch(`/api/vehicles/${currentVehicle.id}/tickets?page=${currentPage}&per_page=80`);
+        const tickets = await res.json();
+        const grid = document.getElementById('ticket-grid');
+        
+        if (currentPage === 1) grid.innerHTML = '';
+        
+        tickets.forEach(t => {
+          const el = document.createElement('div');
+          el.className = 'ticket ' + (t.is_available ? 'available' : 'unavailable');
+          el.textContent = t.ticket_number;
+          el.dataset.num = t.ticket_number;
+          if (t.is_available) {
+            el.onclick = () => toggleTicket(t.ticket_number, el);
+          }
+          if (selectedTickets.has(t.ticket_number)) el.classList.add('selected');
+          grid.appendChild(el);
+        });
+      } catch (e) {
+ console.error(e); }
+    }
+
+    function toggleTicket(num, el) {
+      if (selectedTickets.has(num)) {
+        selectedTickets.delete(num);
+        el.classList.remove('selected');
+      } else {
+        selectedTickets.add(num);
+        el.classList.add('selected');
+      }
+      updateSelectedUI();
+    }
+
+    function updateSelectedUI() {
+      const count = selectedTickets.size;
+      const total = count * (currentVehicle?.price || 0);
+      document.getElementById('selected-count').textContent = `${count} ${t('selected')}`;
+      document.getElementById('selected-total').textContent = total.toLocaleString() + ' Birr';
+    }
+
+    function goToCheckout() {
+      if (selectedTickets.size === 0) {
+        alert('Please select at least one number');
+        return;
+      }
+      const name = lang === 'am' ? (currentVehicle.name_am || currentVehicle.name) : currentVehicle.name;
+      document.getElementById('checkout-summary').textContent = `${name} × ${selectedTickets.size}`;
+      document.getElementById('checkout-tickets').innerHTML = [...selectedTickets].map(n => 
+        `<span style="background:var(--green);color:#000;padding:4px 10px;border-radius:8px;font-size:13px;font-weight:600">#${n}</span>`
+      ).join('');
+      document.getElementById('checkout-total').textContent = (selectedTickets.size * currentVehicle.price).toLocaleString() + ' Birr';
+      
+      loadBanks();
+      showPage('checkout');
+    }
+
+    async function loadBanks() {
+      try {
+        const res = await fetch('/api/banks');
+        banks = await res.json();
+        document.getElementById('banks-list').innerHTML = banks.map(b => `
+          <div class="admin-card" style="padding:12px;margin-bottom:8px">
+            <div style="font-weight:600">${b.name}</div>
+            <div style="color:var(--green);font-size:15px;margin:4px 0">${b.account}</div>
+            <div style="font-size:12px;color:var(--muted)">${b.holder || ''}</div>
+          </div>
+        `).join('');
+      } catch(e) { console.error(e); }
+    }
+
+    async function submitOrder() {
+      const fullName = document.getElementById('input-name').value.trim();
+      const phone = document.getElementById('input-phone').value.trim();
+      if (!fullName || !phone) {
+        alert('Please fill name and phone');
+        return;
+      }
+      const userId = tg?.initDataUnsafe?.user?.id || 0;
+      try {
+        const res = await fetch('/api/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: userId,
+            vehicle_id: currentVehicle.id,
+            tickets: [...selectedTickets],
+            full_name: fullName,
+            phone: phone
+          })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          alert('Order submitted successfully! Please send payment screenshot to the admin.');
+          selectedTickets.clear();
+          showPage('home');
+        }
+      } catch(e) {
+        alert('Error submitting order');
+      }
+    }
+
+    // Admin
+    async function adminLogin() {
+      const pass = document.getElementById('admin-pass').value;
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pass })
+        });
+        if (res.ok) {
+          adminToken = 'admin-authenticated';
+          document.getElementById('admin-login').classList.add('hidden');
+          document.getElementById('admin-dashboard').classList.remove('hidden');
+          loadAdmin();
+        } else {
+          alert('Wrong password');
+        }
+      } catch(e) { alert('Error'); }
+    }
+
+    async function loadAdmin() {
+      const res = await fetch('/api/admin/vehicles', {
+        headers: { 'X-Admin-Token': adminToken }
+      });
+      const vs = await res.json();
+      document.getElementById('admin-vehicles').innerHTML = vs.map(v => `
+        <div class="admin-card">
+          <div style="font-weight:700;margin-bottom:8px">${v.name}</div>
+          <label>Price (Birr)</label>
+          <input type="number" id="price-${v.id}" value="${v.price}">
+          <label>Total Tickets</label>
+          <input type="number" id="total-${v.id}" value="${v.total_tickets}">
+          <button class="btn btn-green" style="margin-top:8px" onclick="saveVehicle(${v.id})">Save</button>
+        </div>
+      `).join('');
+      
+      const bRes = await fetch('/api/banks');
+      banks = await bRes.json();
+      document.getElementById('admin-banks').innerHTML = banks.map((b, i) => `
+        <div class="admin-card">
+          <label>Bank Name</label>
+          <input type="text" id="bank-name-${i}" value="${b.name}">
+          <label>Account Number</label>
+          <input type="text" id="bank-acc-${i}" value="${b.account}">
+          <label>Account Holder</label>
+          <input type="text" id="bank-holder-${i}" value="${b.holder || ''}">
+        </div>
+      `).join('');
+    }
+
+    async function saveVehicle(id) {
+      const price = parseInt(document.getElementById('price-' + id).value);
+      const total = parseInt(document.getElementById('total-' + id).value);
+      await fetch(`/api/admin/vehicles/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken },
+        body: JSON.stringify({ price, total_tickets: total })
+      });
+      alert('Saved!');
+      loadVehicles();
+    }
+
+    async function saveBanks() {
+      const newBanks = banks.map((_, i) => ({
+        name: document.getElementById('bank-name-' + i).value,
+        account: document.getElementById('bank-acc-' + i).value,
+        holder: document.getElementById('bank-holder-' + i).value
+      }));
+      await fetch('/api/admin/banks', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken },
+        body: JSON.stringify({ banks: newBanks })
+      });
+      alert('Banks saved!');
+    }
+
+    function logoutAdmin() {
+      adminToken = null;
+      document.getElementById('admin-login').classList.remove('hidden');
+      document.getElementById('admin-dashboard').classList.add('hidden');
+    }
+  </script>
+</body>
+</html>
