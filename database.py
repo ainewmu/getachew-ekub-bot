@@ -1,6 +1,7 @@
 import aiosqlite
 import json
 import random
+import time
 from pathlib import Path
 from config import DEFAULT_VEHICLES, DEFAULT_BANKS
 
@@ -52,6 +53,7 @@ async def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        await db.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)")
         await db.commit()
 
         # Seed vehicles if empty
@@ -178,4 +180,21 @@ async def create_order(user_id: int, vehicle_id: int, tickets: list, total: int,
             "UPDATE vehicles SET sold_tickets = sold_tickets + ? WHERE id = ?",
             (len(tickets), vehicle_id)
         )
+        await db.commit()
+
+
+async def get_settings():
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute("SELECT key, value FROM settings")
+        s = {k: v for k, v in await cur.fetchall()}
+        if "countdown_end" not in s:
+            s["countdown_end"] = str(int((time.time() + 30 * 86400) * 1000))
+            await db.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ("countdown_end", s["countdown_end"]))
+            await db.commit()
+        return s
+
+
+async def set_setting(key: str, value: str):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value))
         await db.commit()
